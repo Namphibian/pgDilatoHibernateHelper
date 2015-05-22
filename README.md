@@ -10,15 +10,19 @@ a developer to write a lot more boiler plate code.This utility uses the pgDilato
 this process. 
 
 The application can generate the following types of Hibernate classes for you.
+
 1. All UDT/Types 
-2  UDT array types
+
+2. UDT array types
 
 For example to use a postgres structure such as:
 
+````sql
 CREATE TYPE test_person AS
 (
+
     "firstName" character varying(96),
     "LastName" character varying(96)
 );
-
+````
 You will need to manually create the class and use it in hibernate. This utility will create the classes. 
