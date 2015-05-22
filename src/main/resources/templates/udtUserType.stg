@@ -1,0 +1,45 @@
+castName(attrInfo) ::= <<
+<if (attrInfo.isStruct)>(<attrInfo.typeName>) <else><javaIOCastMap.(attrInfo.typeName)><endif>
+>>
+
+prop(attrInfo) ::= <<
+private <javaTypeNameMap.(attrInfo.typeName)> <attrInfo.propertyName>;
+
+>>
+
+getSet(attrInfo) ::= <<
+public <javaTypeNameMap.(attrInfo.typeName)> get<attrInfo.accessorName>() {
+  return <attrInfo.propertyName>;
+}
+
+public void set<attrInfo.accessorName>(<javaTypeNameMap.(attrInfo.typeName)> <attrInfo.propertyName>) {
+  this.<attrInfo.propertyName> = <attrInfo.propertyName>;
+}
+
+>>
+
+
+main(type,typeInfo) ::= <<
+
+import com.namphibian.pgdilato.AbstractUDTUserType;
+
+
+public class <typeInfo.className>UserType extends AbstractUDTUserType\<<typeInfo.className>\> {
+
+
+    public  <typeInfo.className>() throws InstantiationException, IllegalAccessException
+    {
+        super( <typeInfo.className>.class);
+    }
+    
+    @Override
+    protected String getDBUserType() {
+         return "<type.name>";
+    }
+    
+
+    
+   
+    
+}
+>>

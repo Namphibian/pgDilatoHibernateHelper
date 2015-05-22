@@ -1,0 +1,136 @@
+
+
+javaIONameMap ::= [
+  "oid" : "Int",
+  "tid" : "RowId",
+  "xid" : "Int",
+  "cid" : "Int",
+  "bool" : "Boolean",
+  "byte" : "Byte",
+  "int2" : "Short",
+  "int4" : "Int",
+  "int8" : "Long",
+  "float4" : "Float",
+  "float8" : "Double",
+  "text" : "String",
+  "name" : "String",
+  "bytea" : "Bytes",
+  "date" : "Date",
+  "time" : "Time",
+  "timetz" : "Time",
+  "timestamp" : "Timestamp",
+  "timestamptz" : "Timestamp",
+  "numeric" : "BigDecimal",
+  "uuid" : "Object",
+  "money" : "BigDecimal",
+  "xml" : "SQLXML",
+  "json" : "String",
+  default : "Object"
+]
+
+javaIOCastMap ::= [
+  "uuid" : "(java.util.UUID) "
+]
+
+javaTypeNameMap ::= [
+  "oid" : "Integer",
+  "tid" : "RowId",
+  "xid" : "Integer",
+  "cid" : "Integer",
+  "bool" : "Boolean",
+  "byte" : "Byte",
+  "int2" : "Short",
+  "int4" : "Integer",
+  "int8" : "Long",
+  "float4" : "Float",
+  "float8" : "Double",
+  "text" : "String",
+  "name" : "String",
+  "bytea" : "byte[]",
+  "date" : "java.sql.Date",
+  "time" : "java.sql.Time",
+  "timetz" : "java.sql.Time",
+  "timestamp" : "java.sql.Timestamp",
+  "timestamptz" : "java.sql.Timestamp",
+  "numeric" : "java.math.BigDecimal",
+  "uuid" : "java.util.UUID",
+  "money" : "java.math.BigDecimal",
+  "xml" : "java.sql.SQLXML",
+  "json" : "String",
+  default : key
+]
+
+
+castName(attrInfo) ::= <<
+<if (attrInfo.isStruct)>(<attrInfo.typeName>) <else><javaIOCastMap.(attrInfo.typeName)><endif>
+>>
+
+prop(attrInfo) ::= <<
+private <javaTypeNameMap.(attrInfo.typeName)> <attrInfo.propertyName>;
+
+>>
+
+getSet(attrInfo) ::= <<
+public <javaTypeNameMap.(attrInfo.typeName)> get<attrInfo.accessorName>() {
+  return <attrInfo.propertyName>;
+}
+
+public void set<attrInfo.accessorName>(<javaTypeNameMap.(attrInfo.typeName)> <attrInfo.propertyName>) {
+  this.<attrInfo.propertyName> = <attrInfo.propertyName>;
+}
+
+>>
+
+
+main(type,typeInfo) ::= <<
+
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package au.com.insol.jecoll2l.jpa.struct;
+
+
+import com.namphibian.pgdilato.AbstractUDTArrayUserType;
+import java.sql.SQLException;
+import java.sql.Struct;
+
+
+/**
+ *
+ * @author adm_neil
+ */
+public class <typeInfo.className>PgArrayUserType extends AbstractUDTArrayUserType\<<typeInfo.className>\> {
+
+    public <typeInfo.className>PgArrayUserType() throws InstantiationException, IllegalAccessException {
+        super(<typeInfo.className>.class);
+    }
+
+    @Override
+    protected String getDBUserType() {
+         return "<type.name>";
+    }
+
+
+
+
+    @Override
+    protected <typeInfo.className>Type getDataFromStructure(Struct structure) throws SQLException
+    {
+        
+        <typeInfo.className>Type returnObject = new <typeInfo.className>Type();
+        Object[] structValues=structure.getAttributes();
+        <typeInfo.attributeInfos:{attrInfo | returnObject.set<attrInfo.propertyName>((<javaIONameMap.(attrInfo.typeName)>)structValues[<i>]);            
+        }>  
+        
+        
+        return returnObject;
+        
+    }
+
+
+    
+}
+
+>>
