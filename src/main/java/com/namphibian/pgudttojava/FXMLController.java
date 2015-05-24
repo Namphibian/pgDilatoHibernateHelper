@@ -1,22 +1,21 @@
 package com.namphibian.pgudttojava;
 
-import com.impossibl.postgres.jdbc.PGConnectionImpl;
-import static com.impossibl.postgres.protocol.ResultField.Format.Text;
-import com.impossibl.postgres.types.CompositeType;
-import com.impossibl.postgres.types.Registry;
-import com.impossibl.postgres.types.Type;
 
+
+import com.impossibl.postgres.types.CompositeType;
+import com.impossibl.postgres.types.Type;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.net.URL;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ResourceBundle;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
@@ -27,8 +26,10 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableColumn.CellDataFeatures;
+
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
@@ -37,6 +38,8 @@ import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Callback;
+import javafx.beans.value.ObservableValue;
 import org.stringtemplate.v4.AutoIndentWriter;
 import org.stringtemplate.v4.ST;
 import org.stringtemplate.v4.STGroup;
@@ -80,7 +83,7 @@ public class FXMLController implements Initializable {
             "        AND n.nspname <> 'information_schema'\n" +
             "        AND pg_catalog.pg_type_is_visible ( t.oid )\n" +
             "    ORDER BY 1, 2;";
-    private Connection connection; 
+    //private Connection connection; 
     @FXML
     private Button btnConnect;
     @FXML
@@ -94,27 +97,32 @@ public class FXMLController implements Initializable {
     @FXML
     private TextField txtPWD;
     @FXML
-    private TableView<PgUserDefineType> tblMain;
+    private TableView<PgUserDefinedType> tblMain;
     @FXML
-    TableColumn itemConvertCol;
+    TableColumn<PgUserDefinedType,Boolean> itemConvertCol;
     @FXML
-    TableColumn itemTypeNameCol;
+    TableColumn<PgUserDefinedType,String> itemTypeNameCol;
     @FXML
-    TableColumn itemSchemaCol;
+    TableColumn<PgUserDefinedType,String> itemSchemaCol;
     @FXML
-    TableColumn itemSizeCol;
+    TableColumn<PgUserDefinedType,String> itemSizeCol;
+
     private ObservableList data;
-    
+    private PgUDTModelInterface pgSQLUDT;
     @FXML
     private void handleButtonAction(ActionEvent event) {
-        System.out.println("You clicked me!");
+
         try{
-            ConnectToDatabase(txtServer.getText(), txtPort.getText(), txtDB.getText(), txtUID.getText(), txtPWD.getText());
-            itemConvertCol.setCellValueFactory(new PropertyValueFactory<PgUserDefineType,Boolean>("canConvert"));
-            itemTypeNameCol.setCellValueFactory(new PropertyValueFactory<PgUserDefineType,String>("typeName"));
-            itemSchemaCol.setCellValueFactory(new PropertyValueFactory<PgUserDefineType,String>("schemaName"));
-            itemSizeCol.setCellValueFactory(new PropertyValueFactory<PgUserDefineType,String>("size"));
-            this.data = GetUDTList();
+            
+            PgSQLConnectionData pgSQLConnectionData = new PgSQLConnectionData(txtServer.getText(), txtPort.getText(), txtDB.getText(), txtUID.getText(), txtPWD.getText());
+            pgSQLUDT = new PgUDTModel(pgSQLConnectionData);
+            
+            itemConvertCol.setCellValueFactory(new PropertyValueFactory("canConvert"));
+            itemTypeNameCol.setCellValueFactory(new PropertyValueFactory("typeName"));
+            itemSchemaCol.setCellValueFactory(new PropertyValueFactory("schemaName"));
+            itemSizeCol.setCellValueFactory(new PropertyValueFactory("size"));
+           
+            this.data = FXCollections.observableList(pgSQLUDT.GetUDTList());
             tblMain.setItems(data);
         }catch(Exception ex){
             System.out.println(ex.getMessage());
@@ -124,8 +132,8 @@ public class FXMLController implements Initializable {
 
     @FXML
     private void handleGenerateButtonAction(ActionEvent event) {
-        System.out.println("You clicked me!");
-        PGConnectionImpl pgConn = (PGConnectionImpl) this.connection;
+
+        
         DirectoryChooser directoryChooser = new DirectoryChooser();
         directoryChooser.setTitle("Select Output Directory For UDT Classes");
         File selectedDirectory = directoryChooser.showDialog(null);
@@ -152,47 +160,17 @@ public class FXMLController implements Initializable {
             return;
         }
               
-        Registry registry = pgConn.getRegistry();
+       
         for (Object o : tblMain.getItems()) 
         {
                 
                 try{
-                        Type type = registry.loadType((String) itemTypeNameCol.getCellData(o));    
-                        File outFile = new File(selectedDirectory.getAbsolutePath() + File.separator + Names.getFullCamelCase(type.getName()) + "Type.java");
-                        try (FileWriter out = new FileWriter(outFile)) 
-                        {
-
-                            STGroup udtTemplates = new STGroupFile("templates/udt.stg");
-                            ST mainTemplate = udtTemplates.getInstanceOf("main");
-                            mainTemplate.add("isInPackage",false);// targetPackage != null && !targetPackage.isEmpty());
-                            mainTemplate.add("package", "com.package");
-                            mainTemplate.add("type", type);
-                            mainTemplate.add("typeInfo", new TypeInfo((CompositeType) type));
-                            mainTemplate.write(new AutoIndentWriter(out));
-                        }
-                        
-                        outFile = new File(selectedDirectory.getAbsolutePath() + File.separator + Names.getFullCamelCase(type.getName()) + "UserType.java");
-                        try (FileWriter out = new FileWriter(outFile)) 
-                        {
-
-                            STGroup udtTemplates = new STGroupFile("templates/udtUserType.stg");
-                            ST mainTemplate = udtTemplates.getInstanceOf("main");
-
-                            mainTemplate.add("type", type);
-                            mainTemplate.add("typeInfo", new TypeInfo((CompositeType) type));
-                            mainTemplate.write(new AutoIndentWriter(out));
-                        }
-                        outFile = new File(selectedDirectory.getAbsolutePath() + File.separator + Names.getFullCamelCase(type.getName()) + "PgArrayUserType.java");
-                        try (FileWriter out = new FileWriter(outFile)) 
-                        {
-
-                            STGroup udtTemplates = new STGroupFile("templates/udtArrayUserType.stg");
-                            ST mainTemplate = udtTemplates.getInstanceOf("main");
-
-                            mainTemplate.add("type", type);
-                            mainTemplate.add("typeInfo", new TypeInfo((CompositeType) type));
-                            mainTemplate.write(new AutoIndentWriter(out));
-                        }
+                        System.out.println("Hiya");
+                    /* Type type = registry.loadType((String) itemTypeNameCol.getCellData(o));   */ 
+                        PgUserDefinedType pgUserDefinedType =(PgUserDefinedType)o;
+                        GenerateSQLDataTypeClass(selectedDirectory,pgUserDefinedType.getSqlCompositeType(), new TypeInfo(pgUserDefinedType.getSqlCompositeType()));
+                        GenerateHibernateUDTType(selectedDirectory,pgUserDefinedType.getSqlCompositeType(), new TypeInfo(pgUserDefinedType.getSqlCompositeType()));
+                        GenerateHibernateArrayUDTType(selectedDirectory,pgUserDefinedType.getSqlCompositeType(), new TypeInfo(pgUserDefinedType.getSqlCompositeType()));
                         
                 }
         
@@ -202,36 +180,64 @@ public class FXMLController implements Initializable {
             }
         }
     }
+
+    private void GenerateHibernateArrayUDTType(File selectedDirectory, Type type, TypeInfo typeInfo) throws IOException {
+        File outFile = new File(selectedDirectory.getAbsolutePath() + File.separator + Names.getFullCamelCase(type.getName()) + "PgArrayUserType.java");
+        try (FileWriter out = new FileWriter(outFile))
+        {
+            
+            STGroup udtTemplates = new STGroupFile("templates/udtArrayUserType.stg");
+            ST mainTemplate = udtTemplates.getInstanceOf("main");
+            
+            mainTemplate.add("type", type);
+            mainTemplate.add("typeInfo", typeInfo);
+            mainTemplate.write(new AutoIndentWriter(out));
+        }
+    }
+
+    private void GenerateHibernateUDTType(File selectedDirectory, Type type , TypeInfo typeInfo) throws IOException {
+        File outFile = new File(selectedDirectory.getAbsolutePath() + File.separator + Names.getFullCamelCase(type.getName()) + "UserType.java");
+        try (FileWriter out = new FileWriter(outFile))
+        {
+            
+            STGroup udtTemplates = new STGroupFile("templates/udtUserType.stg");
+            ST mainTemplate = udtTemplates.getInstanceOf("main");
+            
+            mainTemplate.add("type", type);
+            mainTemplate.add("typeInfo", new TypeInfo((CompositeType) type));
+            mainTemplate.write(new AutoIndentWriter(out));
+        }
+    }
+
+    private void GenerateSQLDataTypeClass(File selectedDirectory, Type type, TypeInfo typeInfo) throws IOException {
+        File outFile = new File(selectedDirectory.getAbsolutePath() + File.separator + Names.getFullCamelCase(type.getName()) + "Type.java");
+        try (FileWriter out = new FileWriter(outFile))
+        {
+            
+            STGroup udtTemplates = new STGroupFile("templates/udt.stg");
+            ST mainTemplate = udtTemplates.getInstanceOf("main");
+            mainTemplate.add("isInPackage",false);// targetPackage != null && !targetPackage.isEmpty());
+            mainTemplate.add("package", "com.package");
+            mainTemplate.add("type", type);
+            mainTemplate.add("typeInfo", new TypeInfo((CompositeType) type));
+            mainTemplate.write(new AutoIndentWriter(out));
+        }
+    }
     
  
     @Override
     public void initialize(URL url, ResourceBundle rb) {
         // TODO
+       //pgSQL = PgSQLImpl.getInstance();
+        
     }    
     
-    public void  ConnectToDatabase(String server, String port, String database, String userName, String password) throws Exception
-    {
-        String url ="jdbc:pgsql://" + server + ":" + port + "/" + database;
-        
-        
-        try 
-        {
-            this.connection  = DriverManager.getConnection(url, userName, password);
-            if (connection instanceof PGConnectionImpl == false) 
-            {
-                throw new IllegalStateException("Postgres driver must be PGJDBC-NG");
-            }
-        }
-        catch(Exception ex)
-        {
-            throw ex;
-        }
-    }
-    public ObservableList GetUDTList()
+   
+ /*   public ObservableList GetUDTList()
     {
         ResultSet rs = null;
         PreparedStatement ps =null;
-        List<PgUserDefineType> pgList = new ArrayList<>();
+        List<PgUserDefinedType> pgList = new ArrayList<>();
         PGConnectionImpl pgConn = (PGConnectionImpl) this.connection;
 
         Registry registry = pgConn.getRegistry();
@@ -245,7 +251,7 @@ public class FXMLController implements Initializable {
                 
                 while(rs.next())
                 {
-                    PgUserDefineType pgUserDefineType = new PgUserDefineType();
+                    PgUserDefinedType pgUserDefineType = new PgUserDefinedType();
                     
                     Type type = registry.loadType(rs.getString("name"));
                     
@@ -297,7 +303,7 @@ public class FXMLController implements Initializable {
         }
         return FXCollections.observableList(pgList);
         
-    }
+    }*/
     
  
 }

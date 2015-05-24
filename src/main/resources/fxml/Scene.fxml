@@ -84,9 +84,9 @@
                               <TableView fx:id="tblMain" prefHeight="200.0" prefWidth="200.0">
                                 <columns>
                                   <TableColumn id="itemConvertCol" fx:id="itemConvertCol" maxWidth="64.0" minWidth="64.0" prefWidth="64.0" resizable="false" text="Convert" />
-                                  <TableColumn id="itemSchemaCol" fx:id="itemSchemaCol" prefWidth="100.0" text="Schema" />
-                                    <TableColumn id="itemTypeNameCol" fx:id="itemTypeNameCol" prefWidth="130.0" text="Type Name" />
-                                    <TableColumn id="itemSizeCol" fx:id="itemSizeCol" prefWidth="61.0" text="Size" />
+                                  <TableColumn id="itemSchemaCol" fx:id="itemSchemaCol" editable="false" prefWidth="100.0" text="Schema" />
+                                    <TableColumn id="itemTypeNameCol" fx:id="itemTypeNameCol" editable="false" prefWidth="130.0" text="Type Name" />
+                                    <TableColumn id="itemSizeCol" fx:id="itemSizeCol" editable="false" prefWidth="61.0" text="Size" />
                                 </columns>
                               </TableView>
                            </content>
